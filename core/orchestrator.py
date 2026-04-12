@@ -1,7 +1,7 @@
 import requests
 import os
 from dotenv import load_dotenv
-from brain import handle_incoming_message
+from core.brain import handle_incoming_message
 
 load_dotenv()
 
