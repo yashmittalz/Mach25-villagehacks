@@ -1,10 +1,10 @@
-# 🍎 Vibecheck Inventory
+# Vibecheck Inventory
 
 A premium, AI-powered inventory management system built for **VillageHacks '26**. This system leverages **AutoDB** to allow users to manage stock and log sales using plain English natural language commands.
 
 ---
 
-## 🏗️ Project Architecture
+## Project Architecture
 
 Designed by **The Architect**, this project uses a modular structure to support rapid development:
 
@@ -18,7 +18,7 @@ Designed by **The Architect**, this project uses a modular structure to support 
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Environment Setup
 Create a virtual environment and install the required stack:
@@ -43,7 +43,8 @@ python3 scripts/init_db.py
 
 ---
 
-## 🛠️ Team
+## Team
 - **Yash Mittal**: The Architect
 - **Reya**: The Plumber
 - **Harshith**: The Brain
+- **Souradeep**: The Opencrack
