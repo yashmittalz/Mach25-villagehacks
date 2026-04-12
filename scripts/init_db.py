@@ -12,19 +12,19 @@ def initialize_schema():
     HEADERS = {"X-API-Key": API_KEY, "Content-Type": "application/json"}
 
     sql = """
-    CREATE TABLE IF NOT EXISTS public.inventory (
+    CREATE TABLE IF NOT EXISTS inventory (
         id SERIAL PRIMARY KEY, 
         item_name VARCHAR(100), 
         qty INT
     );
-    CREATE TABLE IF NOT EXISTS public.sales_log (
+    CREATE TABLE IF NOT EXISTS sales_log (
         id SERIAL PRIMARY KEY, 
         item VARCHAR(100), 
         qty_sold INT, 
         customer VARCHAR(100), 
         created_at TIMESTAMP DEFAULT NOW()
     );
-    INSERT INTO public.inventory (item_name, qty) 
+    INSERT INTO inventory (item_name, qty) 
     VALUES ('Fuji Apples', 100), ('Honeycrisp Apples', 50)
     ON CONFLICT DO NOTHING;
     """
