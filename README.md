@@ -47,3 +47,4 @@ python3 scripts/init_db.py
 - **Yash Mittal**: The Architect
 - **Reya**: The Plumber
 - **Harshith**: The Brain
+- **Souradeep**: The Opencrack

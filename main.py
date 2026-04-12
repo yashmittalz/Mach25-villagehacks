@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from core.brain import parse_message, format_db_result
+from core.brain import parse_message, format_db_result, analyze_business_health
 from core.database import execute_vibe_query
 from core.telegram import send_message
 
@@ -22,7 +22,7 @@ async def webhook(req: Request):
     parsed = parse_message(user_text)
     action = parsed.get("action")
     db_prompts = parsed.get("autodb_prompts", [])
-    final_reply = parsed.get("whatsapp_reply")
+    final_reply = parsed.get("telegram_reply")
 
     # STEP 2: Execute Database Actions
     if action in ["write", "read"] and db_prompts:
@@ -35,8 +35,15 @@ async def webhook(req: Request):
         if action == "read":
             combined_results = "\\n".join(results)
             final_reply = format_db_result(user_text, combined_results)
+        
+        # STEP 4: If it was a WRITE, analyze business health for smart suggestions
+        elif action == "write":
+            combined_results = "\\n".join(results)
+            alert = analyze_business_health(combined_results)
+            if alert:
+                final_reply = f"{final_reply}\n\n{alert}"
 
-    # STEP 4: Send the message back to Telegram
+    # STEP 5: Send the message back to Telegram
     send_message(chat_id, final_reply)
 
     return {"ok": True}
