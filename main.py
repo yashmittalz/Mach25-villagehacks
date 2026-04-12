@@ -1,52 +1,28 @@
-import os
-import requests
-from dotenv import load_dotenv
 from fastapi import FastAPI, Request
-from core.database import execute_agent_query
-from core.brain import handle_incoming_message
-
-load_dotenv()
+from core.autodb_client import AutoDBClient
+from core.bot_utils import send_message
 
 app = FastAPI()
 
-# Setup config
-BOT_TOKEN = os.getenv("TELEGRAM_TOKEN", "8660986927:AAFAXBqYTHXGmIVFGGlmOhBco3v5N3mp65I")
+BOT_TOKEN = "8660986927:AAFAXBqYTHXGmIVFGGlmOhBco3v5N3mp65I"
+autodb = AutoDBClient()
 
-def send_telegram_message(chat_id: str, reply: str):
-    """Utility to send telegram responses back to the user."""
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    try:
-        requests.post(url, json={
-            "chat_id": chat_id,
-            "text": reply
-        })
-    except Exception as e:
-        print(f"Failed to send telegram message: {str(e)}")
-
+# STEP 1: receive message
 @app.post("/webhook")
 async def webhook(req: Request):
-    """
-    The main hook serving as the Plumber. 
-    Connects incoming Telegram webhook calls to the AI Brain.
-    """
     data = await req.json()
 
-    # Accommodate Telegram's webhook payload structure securely
-    message_data = data.get("message")
-    if not message_data or "text" not in message_data:
-        return {"ok": True}
+    message = data["message"]["text"]
+    chat_id = data["message"]["chat"]["id"]
 
-    user_text = message_data["text"]
-    chat_id = message_data["chat"]["id"]
+    # STEP 2: send to AutoDB
+    response = handle_message(message)
 
-    print(f"\n[Received Webhook for Chat {chat_id}]: {user_text}")
-
-    # Pass the text to the AI Orchestrator (The Brain)
-    # Give it the DB executor and the Telegram sender callbacks
-    handle_incoming_message(
-        user_text=user_text,
-        autodb_fn=execute_agent_query,
-        telegram_fn=lambda reply: send_telegram_message(chat_id, reply)
-    )
+    # STEP 3: reply to user
+    send_message(BOT_TOKEN, chat_id, response)
 
     return {"ok": True}
+
+
+def handle_message(message):
+    return autodb.process(message)# Reya (Plumber) will work here
