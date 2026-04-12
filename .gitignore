@@ -7,3 +7,4 @@ Archive/
 brain/
 venv/
 .env.example
+autodb_client.py
