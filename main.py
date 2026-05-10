@@ -1,7 +1,10 @@
+import os
+import requests
 from fastapi import FastAPI, Request
 from core.brain import parse_message, format_db_result, analyze_business_health
 from core.database import execute_vibe_query
-from core.telegram import send_message, send_message_with_buttons
+from core.telegram import send_message, send_message_with_buttons, download_voice, send_voice
+from core.voice import transcribe_audio, generate_speech
 
 app = FastAPI()
 
@@ -14,13 +17,32 @@ async def webhook(req: Request):
     data = await req.json()
     
     # Catch empty/system messages
-    if "message" not in data or "text" not in data["message"]:
+    if "message" not in data:
         return {"ok": True}
 
-    user_text = data["message"]["text"]
-    chat_id = data["message"]["chat"]["id"]
-    user_name = data["message"]["from"].get("first_name", "there")
-    print(f"\n[Received]: {user_text}")
+    message = data["message"]
+    chat_id = message["chat"]["id"]
+    user_name = message["from"].get("first_name", "there")
+    is_voice = False
+
+    if "voice" in message:
+        file_id = message["voice"]["file_id"]
+        audio_path = download_voice(file_id)
+        if audio_path:
+            user_text = transcribe_audio(audio_path)
+            os.remove(audio_path)
+        else:
+            user_text = ""
+        is_voice = True
+        print(f"\n[Received Voice Transcribed]: {user_text}")
+    elif "text" in message:
+        user_text = message["text"]
+        print(f"\n[Received Text]: {user_text}")
+    else:
+        return {"ok": True}
+        
+    if not user_text:
+        return {"ok": True}
 
     # Initialize history for this user if it doesn't exist
     if chat_id not in chat_history:
@@ -67,6 +89,11 @@ async def webhook(req: Request):
 
     # STEP 5: Send the message back to Telegram
     send_message(chat_id, final_reply)
+    if is_voice:
+        reply_audio_path = generate_speech(final_reply)
+        if reply_audio_path:
+            send_voice(chat_id, reply_audio_path)
+            os.remove(reply_audio_path)
     
     # Save bot's reply to history
     chat_history[chat_id].append(f"Bot: {final_reply}")
