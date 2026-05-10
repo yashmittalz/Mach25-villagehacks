@@ -11,7 +11,9 @@ BASE_URL = "http://api.autodb.app/api/v1" # Using HTTP to avoid ASU Wifi timeout
 def execute_vibe_query(intent_prompt: str) -> str:
     """Takes plain English and mutates the database via AutoDB."""
     # Since we split prompts in brain.py, we only need simple singular statements now.
-    safe_prompt = intent_prompt + " RULES: Use a SINGLE SQL statement only. Use ILIKE for string matches. If it's an INSERT, UPDATE, or DELETE, ALWAYS end with RETURNING *."
+    # Tell the Vibe Query LLM exactly which schema to use for inventory/sales
+    schema_hint = "IMPORTANT: Use schema 'tenant_b0fbbfb01cc86d41' for all queries involving 'inventory' or 'sales_log' tables."
+    safe_prompt = f"{intent_prompt} RULES: {schema_hint} Use a SINGLE SQL statement only. Use ILIKE for string matches. If it's an INSERT, UPDATE, or DELETE, ALWAYS end with RETURNING *."
     
     payload = {
         "connection_id": CONN_ID,
