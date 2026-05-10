@@ -42,40 +42,36 @@ def send_message_with_buttons(chat_id: str, text: str):
     else:
         print(f"Telegram Message with Buttons Sent successfully!")
 
-def send_voice(chat_id: str, text: str):
-    """Converts text to speech and sends as voice message."""
-    from elevenlabs.client import ElevenLabs
-    from elevenlabs import VoiceSettings
+def download_voice(file_id: str) -> str:
+    """Download a voice message from Telegram and return the temporary file path."""
     import tempfile
+    
+    file_info = requests.get(
+        f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile",
+        params={"file_id": file_id}
+    ).json()
+    
+    if not file_info.get("ok"):
+        return ""
+        
+    file_path = file_info["result"]["file_path"]
+    file_url = f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{file_path}"
 
-    api_key = os.getenv("ELEVENLABS_API_KEY")
-    if not api_key:
-        print("ELEVENLABS_API_KEY is not set. Cannot send voice message.")
-        return
+    audio_data = requests.get(file_url).content
+    with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as f:
+        f.write(audio_data)
+        return f.name
 
+def send_voice(chat_id: str, audio_path: str):
+    """Sends a local audio file as a voice message."""
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendVoice"
     try:
-        eleven = ElevenLabs(api_key=api_key)
-        audio = eleven.text_to_speech.convert(
-            text=text,
-            voice_id="JBFqnCBsd6RMkjVDRZzb",
-            model_id="eleven_multilingual_v2",
-            voice_settings=VoiceSettings(stability=0.5, similarity_boost=0.75)
-        )
-        
-        with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as f:
-            for chunk in audio:
-                f.write(chunk)
-            temp_path = f.name
-        
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendVoice"
-        with open(temp_path, "rb") as audio_file:
+        with open(audio_path, "rb") as audio_file:
             res = requests.post(url, data={"chat_id": chat_id}, files={"voice": audio_file})
         
         if res.status_code != 200:
             print(f"Voice send error: {res.text}")
         else:
             print(f"Voice message sent to {chat_id}")
-            
-        os.remove(temp_path)
     except Exception as e:
-        print(f"Failed to generate or send voice message: {e}")
+        print(f"Failed to send voice message: {e}")

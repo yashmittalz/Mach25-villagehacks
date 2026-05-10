@@ -1,54 +1,12 @@
 import os
 import requests
-import tempfile
 from fastapi import FastAPI, Request
 from core.brain import parse_message, format_db_result, analyze_business_health
 from core.database import execute_vibe_query
-from core.telegram import send_message, send_message_with_buttons, send_voice
+from core.telegram import send_message, send_message_with_buttons, download_voice, send_voice
+from core.voice import transcribe_audio, generate_speech
 
 app = FastAPI()
-
-def transcribe_voice(file_id: str) -> str:
-    """Download voice message from Telegram and transcribe with ElevenLabs."""
-    from elevenlabs.client import ElevenLabs
-    TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "8660986927:AAFAXBqYTHXGmIVFGGlmOhBco3v5N3mp65I")
-    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-    
-    if not ELEVENLABS_API_KEY:
-        print("ELEVENLABS_API_KEY missing. Cannot transcribe.")
-        return ""
-
-    file_info = requests.get(
-        f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile",
-        params={"file_id": file_id}
-    ).json()
-    
-    if not file_info.get("ok"):
-        return ""
-        
-    file_path = file_info["result"]["file_path"]
-    file_url = f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{file_path}"
-
-    audio_data = requests.get(file_url).content
-    with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as f:
-        f.write(audio_data)
-        temp_path = f.name
-
-    try:
-        eleven = ElevenLabs(api_key=ELEVENLABS_API_KEY)
-        with open(temp_path, "rb") as audio_file:
-            result = eleven.speech_to_text.convert(
-                file=audio_file,
-                model_id="scribe_v1"
-            )
-        text = result.text
-    except Exception as e:
-        print(f"Transcription error: {e}")
-        text = ""
-    finally:
-        os.remove(temp_path)
-        
-    return text
 
 # Store recent conversation history in memory for context (chat_id -> list of messages)
 chat_history = {}
@@ -69,7 +27,12 @@ async def webhook(req: Request):
 
     if "voice" in message:
         file_id = message["voice"]["file_id"]
-        user_text = transcribe_voice(file_id)
+        audio_path = download_voice(file_id)
+        if audio_path:
+            user_text = transcribe_audio(audio_path)
+            os.remove(audio_path)
+        else:
+            user_text = ""
         is_voice = True
         print(f"\n[Received Voice Transcribed]: {user_text}")
     elif "text" in message:
@@ -127,7 +90,10 @@ async def webhook(req: Request):
     # STEP 5: Send the message back to Telegram
     send_message(chat_id, final_reply)
     if is_voice:
-        send_voice(chat_id, final_reply)
+        reply_audio_path = generate_speech(final_reply)
+        if reply_audio_path:
+            send_voice(chat_id, reply_audio_path)
+            os.remove(reply_audio_path)
     
     # Save bot's reply to history
     chat_history[chat_id].append(f"Bot: {final_reply}")
